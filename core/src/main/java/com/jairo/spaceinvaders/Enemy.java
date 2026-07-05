@@ -81,6 +81,15 @@ public class Enemy {
 
         for(Enemy enemy : enemyParty){
 
+            if(Collision.checkCollision(Player.playerRect, enemy.enemyShootRect) && !Player.hurted){
+                Player.hurted = true;
+                Player.playerLifes--;
+                if(Player.playerLifes <= 0) FirstScreen.resetingWorld = true;
+                Player.layoutLifesFont.setText(Player.lifesFont, "LIFES: " + String.valueOf(Player.playerLifes));
+                Player.damageTaken = 3.0f;
+            }
+
+
             if(enemy.shooting){
                 enemy.enemyShootRect.y -= shootSpeed * delta;
                 if(enemy.enemyShootRect.y + enemy.enemyShootRect.height < 0f){

@@ -21,17 +21,22 @@ public class Player {
     protected static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
 
     protected static final BitmapFont scoreFont;
+    protected static final BitmapFont lifesFont;
 
     protected static final GlyphLayout layoutScoreFont = new GlyphLayout();
+    protected static final GlyphLayout layoutLifesFont = new GlyphLayout();
 
     protected static final Rectangle playerRect = new Rectangle(0f, 50f, 50f, 50f);
     protected static final Rectangle playerShootRect = new Rectangle(playerRect.x, playerRect.y, 10f, 10f);
     
     protected static int playerScore = 0;
+    protected static int playerLifes = 3;
 
     protected static float playerSpeed = 150.0f;
     protected static float playerShootSpeed = 666f;
+    protected static float damageTaken = 0.1f;
 
+    protected static boolean hurted = false;
     protected static boolean shootCoolDown = false;
 
     static {
@@ -42,6 +47,9 @@ public class Player {
 
         scoreFont = generator.generateFont(parameter);
         layoutScoreFont.setText(scoreFont, "SCORE: " + String.valueOf(playerScore));
+
+        lifesFont = generator.generateFont(parameter);
+        layoutLifesFont.setText(lifesFont, "LIFES: " + String.valueOf(playerLifes));
 
         pixmap.setColor(Color.WHITE);
         pixmap.fill();

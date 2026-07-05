@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -29,9 +30,12 @@ public class FirstScreen implements Screen {
 
     float coolDownReset = 0.5f;
 
-    protected static boolean resetingWorld = false;
 
-    String enemiesList;
+    float piscaCD = 1.0f;
+    boolean piscaBool = false;
+    float piscaColor = 1.0f;
+
+    protected static boolean resetingWorld = false;
 
     Enemy enemy = new Enemy();
     DelayedRemovalArray<Enemy> enemyParty = new DelayedRemovalArray<>();
@@ -65,20 +69,36 @@ public class FirstScreen implements Screen {
     }
 
     public void update(float delta){
-        // System.out.print("\033[H\033[2J");
-        // System.out.flush();
+        if(Player.hurted){
 
-        // System.out.println("MOST CLOSE BEGIN: " + Enemy.mostCloseBeginID);
-        // System.out.println("MOST CLOSE END: " + Enemy.mostCloseEndID);
+            piscaCD -= 6.0f * delta;
+            if(piscaCD <= 0.0f){
+                piscaBool = !piscaBool; 
+                piscaCD = 1.0f;
+            }
+
+            if(piscaBool) piscaColor = 1.0f;
+            else piscaColor = 0.0f;
+
+            Player.pixmap.setColor(Color.rgba8888(1.0f, piscaColor, piscaColor, 1.0f));
+            Player.pixmap.fill();
+            Player.playerTexture = new Texture(Player.pixmap);
+
+
+            Player.damageTaken -= 1.0 * delta;
+            if(Player.damageTaken < 0.0f){
+                Player.hurted = false;
+                Player.pixmap.setColor(Color.WHITE);
+                Player.pixmap.fill();
+                Player.playerTexture = new Texture(Player.pixmap);
+            } 
+        }
 
         if(coolDownReset >= 0.0f) coolDownReset -= 1.0f * delta;
 
         if(enemyParty.isEmpty() && !resetingWorld){
             enemy.spawnEnemies(enemyParty);
         }
-
-        // System.out.println("ENEMIES POOL: [" + enemiesList + "]");
-        // enemiesList = "";
 
         //SHOOT FOLLOWING PLAYER
         if(!Player.shootCoolDown) Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
@@ -128,6 +148,7 @@ public class FirstScreen implements Screen {
 
                 batch.draw(Player.playerShootTexture, Player.playerShootRect.x, Player.playerShootRect.y, Player.playerShootRect.width, Player.playerShootRect.height);
                 batch.draw(Player.playerTexture, Player.playerRect.x, Player.playerRect.y, Player.playerRect.width, Player.playerRect.height);
+                Player.lifesFont.draw(batch, Player.layoutLifesFont, (Gdx.graphics.getWidth() - Player.layoutLifesFont.width) - Player.lifesFont.getSpaceXadvance(), Gdx.graphics.getHeight() - Player.lifesFont.getAscent());
             }
             
             if(!enemyParty.isEmpty() && !resetingWorld){
@@ -169,7 +190,13 @@ public class FirstScreen implements Screen {
 
     void resetWorld(){
         Player.playerScore = 0;
+        Player.playerLifes = 3;
+        Player.hurted = false;
         Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
+        Player.layoutLifesFont.setText(Player.lifesFont, "LIFES: " + String.valueOf(Player.playerLifes));
+        Player.pixmap.setColor(Color.WHITE);
+        Player.pixmap.fill();
+        Player.playerTexture = new Texture(Player.pixmap);
 
         enemyParty.begin();
         for(Enemy enemy : enemyParty){
