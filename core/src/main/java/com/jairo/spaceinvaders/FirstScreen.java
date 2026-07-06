@@ -39,6 +39,7 @@ public class FirstScreen implements Screen {
 
     Enemy enemy = new Enemy();
     DelayedRemovalArray<Enemy> enemyParty = new DelayedRemovalArray<>();
+    DelayedRemovalArray<EnemyShoot> enemyShootsParty = new DelayedRemovalArray<>();
     
     @Override
     public void show() {
@@ -69,6 +70,13 @@ public class FirstScreen implements Screen {
     }
 
     public void update(float delta){
+
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+
+        System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyShootsParty.size);
+
+
         if(Player.hurted){
 
             piscaCD -= 6.0f * delta;
@@ -83,7 +91,6 @@ public class FirstScreen implements Screen {
             Player.pixmap.setColor(Color.rgba8888(1.0f, piscaColor, piscaColor, 1.0f));
             Player.pixmap.fill();
             Player.playerTexture = new Texture(Player.pixmap);
-
 
             Player.damageTaken -= 1.0 * delta;
             if(Player.damageTaken < 0.0f){
@@ -112,7 +119,7 @@ public class FirstScreen implements Screen {
         }
 
         if(!resetingWorld && coolDownReset < 0f){
-            enemy.enemiesLogic(enemyParty, delta);
+            enemy.enemiesLogics(enemyParty, enemyShootsParty, delta);
 
             if(Gdx.input.isKeyPressed(Input.Keys.D) && (Player.playerRect.x < Gdx.graphics.getWidth() - Player.playerRect.width)) Player.playerRect.x += Player.playerSpeed * delta;
             if(Gdx.input.isKeyPressed(Input.Keys.A) && Player.playerRect.x > 0) Player.playerRect.x -= Player.playerSpeed * delta;
@@ -154,7 +161,10 @@ public class FirstScreen implements Screen {
             if(!enemyParty.isEmpty() && !resetingWorld){
                 for(Enemy enemy : enemyParty){
                     batch.draw(enemy.enemyTexture, enemy.enemyRect.x, enemy.enemyRect.y, enemy.enemyRect.width, enemy.enemyRect.height);
-                    batch.draw(enemy.enemyShootTexture, enemy.enemyShootRect.x, enemy.enemyShootRect.y, enemy.enemyShootRect.width, enemy.enemyShootRect.height);
+                }
+
+                for(EnemyShoot eShoot : enemyShootsParty){
+                    batch.draw(EnemyShoot.enemyShootTexture, eShoot.enemyShootRect.x, eShoot.enemyShootRect.y, eShoot.enemyShootRect.width, eShoot.enemyShootRect.height);
                 }
             }
         batch.end();
@@ -189,6 +199,7 @@ public class FirstScreen implements Screen {
     }
 
     void resetWorld(){
+        enemyShootsParty.clear();
         Player.playerScore = 0;
         Player.playerLifes = 3;
         Player.hurted = false;

@@ -8,14 +8,34 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.DelayedRemovalArray;
 
+class EnemyShoot{
+
+    public Rectangle enemyShootRect;
+    public static Texture enemyShootTexture;
+    
+
+    private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+
+    public EnemyShoot(float xPos, float yPos){
+        enemyShootRect = new Rectangle(xPos, yPos, 10f, 10f);
+        enemyShootRect.setCenter(xPos, yPos);
+    }
+
+    static {
+        pixmap.setColor(Color.PURPLE);
+        pixmap.fill();
+        enemyShootTexture = new Texture(pixmap);
+    }
+
+}
+
 public class Enemy {
 
     private int ID;
     public Texture enemyTexture;
-    public Texture enemyShootTexture;
-    //Color color = Color.YELLOW;
+    
     public Rectangle enemyRect;
-    public Rectangle enemyShootRect;
+    
     private static Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
 
     private static int mostCloseBeginID;
@@ -32,10 +52,9 @@ public class Enemy {
         //this.enemyQnt = enemyQnt;
     }
 
-    protected void enemiesLogic(DelayedRemovalArray<Enemy> enemyParty, float delta){
-        enemyMoveLogic(enemyParty, delta);
-        enemyAttackLogic(enemyParty, delta);
-        
+    protected void enemiesLogics(DelayedRemovalArray<Enemy> enemyParty, DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
+        enemyLogic(enemyParty, enemyShootsParty, delta);
+        enemyAttackLogic(enemyShootsParty, delta); 
     }
 
     protected void spawnEnemies(DelayedRemovalArray<Enemy> enemyParty){
@@ -44,11 +63,11 @@ public class Enemy {
 
         float enemySize = 50f;
         float xPos = enemySize * 1.1f;
-        float yPos = Gdx.graphics.getHeight() -( enemySize * 1.6f);
+        float yPos = Gdx.graphics.getHeight();
 
-        for(int i = 0; i < 20; i++){
+        for(int i = 0; i < 40; i++){
             if(i % 10 == 0){
-                yPos -= enemySize * 2.3f;
+                yPos -= enemySize * 1.8f;
                 xPos = enemySize * 1.7f;
             }
 
@@ -59,12 +78,6 @@ public class Enemy {
             enemy.enemyTexture = new Texture(pixmap);
             enemy.enemyRect = new Rectangle(xPos, yPos, enemySize, enemySize);
             
-            pixmap.setColor(Color.PURPLE);
-            pixmap.fill();
-            enemy.enemyShootTexture = new Texture(pixmap);
-
-            enemy.enemyShootRect = new Rectangle(enemy.enemyRect.x ,enemy.enemyRect.y, 10f, 10f);
-            enemy.enemyShootRect.setCenter(enemy.enemyRect.x + (enemy.enemyRect.width / 2), enemy.enemyRect.y + (enemy.enemyRect.height / 2));
             enemy.enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
             
             enemyParty.add(enemy);
@@ -77,11 +90,13 @@ public class Enemy {
         mostCloseEndID = enemyParty.get(enemyParty.size - 1).ID;
     }
 
-    private void enemyAttackLogic(DelayedRemovalArray<Enemy> enemyParty, float delta){
+    private void enemyAttackLogic(DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
 
-        for(Enemy enemy : enemyParty){
+        for(int i = 0; i < enemyShootsParty.size; i++){
 
-            if(Collision.checkCollision(Player.playerRect, enemy.enemyShootRect) && !Player.hurted){
+            enemyShootsParty.get(i).enemyShootRect.y -= 50.0f * delta;
+
+            if(Collision.checkCollision(Player.playerRect, enemyShootsParty.get(i).enemyShootRect) && !Player.hurted){
                 Player.hurted = true;
                 Player.playerLifes--;
                 if(Player.playerLifes <= 0) FirstScreen.resetingWorld = true;
@@ -89,28 +104,11 @@ public class Enemy {
                 Player.damageTaken = 3.0f;
             }
 
-
-            if(enemy.shooting){
-                enemy.enemyShootRect.y -= shootSpeed * delta;
-                if(enemy.enemyShootRect.y + enemy.enemyShootRect.height < 0f){
-                    enemy.enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
-                    enemy.shooting = false;
-                }
-            }
-
-            if(!enemy.shooting){
-                enemy.enemyShootRect.setCenter(enemy.enemyRect.x + (enemy.enemyRect.width / 2), enemy.enemyRect.y + (enemy.enemyRect.height / 2));
-                enemy.enemyShootCoolDown -= 1.0f * delta;
-                    if(enemy.enemyShootCoolDown <= 0.0f){
-                    enemy.shooting = true;
-                    System.out.println("ENEMY SHOOTING");
-                }
-            }
-
+            if(enemyShootsParty.get(i).enemyShootRect.y + enemyShootsParty.get(i).enemyShootRect.height < 0f) enemyShootsParty.removeValue(enemyShootsParty.get(i), true);
         }
     }
 
-    private void enemyMoveLogic(DelayedRemovalArray<Enemy> enemyParty, float delta){
+    private void enemyLogic(DelayedRemovalArray<Enemy> enemyParty, DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
         if(enemyParty.get(Enemy.mostCloseEndID).enemyRect.x + (enemyParty.get(Enemy.mostCloseEndID).enemyRect.width * 2) >= Gdx.graphics.getWidth()) {
             moveSideRight = !moveSideRight;
         }
@@ -118,6 +116,14 @@ public class Enemy {
 
         
         for(int i = enemyParty.size - 1; i >= 0; i--){
+            if(enemyParty.get(i).enemyShootCoolDown >= 0.0f){
+                enemyParty.get(i).enemyShootCoolDown -= 0.5f * delta;
+            } else {
+                EnemyShoot shoot = new EnemyShoot(enemyParty.get(i).enemyRect.x, enemyParty.get(i).enemyRect.y);
+                enemyShootsParty.add(shoot);
+                enemyParty.get(i).enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
+            }
+
             if(moveSideRight) enemyParty.get(i).enemyRect.x += 2f;
             if(!moveSideRight) enemyParty.get(i).enemyRect.x -= 2f;
 
@@ -150,6 +156,7 @@ public class Enemy {
                 Player.playerScore++;
                 Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
             }
+
         }
 
         //CHECK CLOSEST TO BEGIN/END
