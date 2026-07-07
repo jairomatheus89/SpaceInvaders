@@ -85,6 +85,7 @@ public class FirstScreen implements Screen {
 
         System.out.print("\033[H\033[2J");
         System.out.flush();
+        System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyParty.size);
         System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyShootsParty.size);
 
         if(Player.hurted){
@@ -164,7 +165,12 @@ public class FirstScreen implements Screen {
             
             if(!enemyParty.isEmpty() && !resetingWorld){
                 for(Enemy obj : enemyParty){
-                    batch.draw(obj.enemyTexture, obj.enemyRect.x, obj.enemyRect.y, obj.enemyRect.width, obj.enemyRect.height);
+                    if(obj.state == Enemy.EnemyState.ALIVE){
+                        batch.draw(obj.getCurrentFrameAnim(obj.idleAnimation, delta), obj.enemyRect.x, obj.enemyRect.y, obj.enemyRect.width, obj.enemyRect.height);
+                    }
+                    if(obj.state == Enemy.EnemyState.DEATH){
+                        batch.draw(obj.getCurrentFrameAnim(obj.dyingAnimation, delta), obj.enemyRect.x, obj.enemyRect.y, obj.enemyRect.width, obj.enemyRect.height);
+                    }
                 }
 
                 for(EnemyShoot eShoot : enemyShootsParty){

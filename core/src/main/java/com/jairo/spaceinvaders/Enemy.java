@@ -5,9 +5,12 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.DelayedRemovalArray;
+
 
 
 class EnemyShoot{
@@ -31,12 +34,38 @@ class EnemyShoot{
 
 public class Enemy {
 
+    public static enum EnemyState {
+        ALIVE,
+        DEATH
+    }
+
     protected static Music enemyDieSfx = Gdx.audio.newMusic(Gdx.files.internal("enemydie.wav"));
     protected static Music enemyShootSfx = Gdx.audio.newMusic(Gdx.files.internal("enemyShoot.wav"));
 
     private int ID;
-    public Texture enemyTexture;
-    
+    public EnemyState state = EnemyState.ALIVE;;
+    public float stateTime;
+
+    private static final Texture enemyTexture = new Texture(Gdx.files.internal("spritesheets/enemy/enemy.png"));
+    private static final TextureRegion[][] regions = TextureRegion.split(enemyTexture, 50, 50); 
+    private static final TextureRegion[] idle = {
+        regions[0][0],
+        regions[0][1],
+        regions[0][2]
+    };
+    private static final TextureRegion[] dyingAnim = {
+        regions[1][0],
+        regions[1][1],
+        regions[1][2],
+        regions[1][3],
+        regions[1][4],
+        regions[1][5],
+        regions[1][6],
+    };
+
+    Animation<TextureRegion> idleAnimation = new Animation<>(0.1f, idle);
+    Animation<TextureRegion> dyingAnimation = new Animation<>(0.1f, dyingAnim);
+
     public Rectangle enemyRect;
     
     private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -44,7 +73,7 @@ public class Enemy {
     private static int mostCloseBeginID;
     private static int mostCloseEndID;
 
-    private float enemyShootCoolDown = 0f;
+    private float enemyShootCoolDown = 3f;
     private final float shootSpeed = 100.0f;
     //private static float moveSideCoolDown = 1.0f;
 
@@ -75,12 +104,11 @@ public class Enemy {
 
             Enemy enemy = new Enemy();
             enemy.ID = enemyID;
-            pixmap.setColor(Color.YELLOW);
-            pixmap.fill();
-            enemy.enemyTexture = new Texture(pixmap);
+
+            dyingAnimation.setPlayMode(Animation.PlayMode.NORMAL);
+
             enemy.enemyRect = new Rectangle(xPos, yPos, enemySize, enemySize);
-            
-            enemy.enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
+            enemy.enemyShootCoolDown = MathUtils.random( 3.0f, 18.0f);
             
             enemyParty.add(enemy);
 
@@ -90,6 +118,14 @@ public class Enemy {
 
         mostCloseBeginID = enemyParty.get(0).ID;
         mostCloseEndID = enemyParty.get(enemyParty.size - 1).ID;
+    }
+
+    public TextureRegion getCurrentFrameAnim(Animation<TextureRegion> animation, float delta){
+        stateTime += delta;
+        if(state == EnemyState.ALIVE){
+            return animation.getKeyFrame(stateTime, true);
+        }
+        return animation.getKeyFrame(stateTime, false);
     }
 
     private void enemyAttackLogic(DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
@@ -123,38 +159,47 @@ public class Enemy {
         }
         if(enemyParty.get(Enemy.mostCloseBeginID).enemyRect.x - enemyParty.get(Enemy.mostCloseBeginID).enemyRect.width <= 0) moveSideRight = !moveSideRight;
 
+       
+
+
         for(int i = enemyParty.size - 1; i >= 0; i--){
+            
+            if(enemyParty.get(i).state == EnemyState.ALIVE){
+                //IF ALIVE SHOOTING SETUP
+                if(enemyParty.get(i).enemyShootCoolDown >= 0.0f){
+                    enemyParty.get(i).enemyShootCoolDown -= 0.5f * delta;
+                } else {
+                    EnemyShoot shoot = new EnemyShoot(enemyParty.get(i).enemyRect.x, enemyParty.get(i).enemyRect.y);
+                    enemyShootsParty.add(shoot);
+                    enemyParty.get(i).enemyShootCoolDown = MathUtils.random( 3.0f, 18.0f);
+                    enemyShootSfx.play();
+                }
 
-            //SHOOTING SETUP
-            if(enemyParty.get(i).enemyShootCoolDown >= 0.0f){
-                enemyParty.get(i).enemyShootCoolDown -= 0.5f * delta;
-            } else {
-                EnemyShoot shoot = new EnemyShoot(enemyParty.get(i).enemyRect.x, enemyParty.get(i).enemyRect.y);
-                enemyShootsParty.add(shoot);
-                enemyParty.get(i).enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
-                enemyShootSfx.play();
+                //IF ALIVE MOVE SETUP
+                if(moveSideRight) enemyParty.get(i).enemyRect.x += 2f;
+                if(!moveSideRight) enemyParty.get(i).enemyRect.x -= 2f;
+
+                if(Collision.checkCollision(Player.playerRect, enemyParty.get(i).enemyRect) && !FirstScreen.resetingWorld){
+                    System.out.println("VOCE MORREU!@");
+                    FirstScreen.mainMusic.stop();
+                    FirstScreen.resetingWorld = true;
+                    Player.playerdieSfx.play();
+                    FirstScreen.loseMusic.play();
+                }
+
+                if(Collision.checkCollision(Player.playerShootRect, enemyParty.get(i).enemyRect)){
+                    Player.shootCoolDown = false;
+                    enemyParty.get(i).state = EnemyState.DEATH;
+                    enemyParty.get(i).stateTime = 0;
+                    System.out.println("MATOU O INIMIGO: " + (enemyParty.get(i).ID));
+                    enemyDieSfx.play();
+                    
+                    Player.playerScore++;
+                    Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
+                }
             }
 
-            //MOVE SETUP
-            if(moveSideRight) enemyParty.get(i).enemyRect.x += 2f;
-            if(!moveSideRight) enemyParty.get(i).enemyRect.x -= 2f;
-
-            pixmap.setColor(Color.YELLOW);
-            pixmap.fill();
-            enemyParty.get(i).enemyTexture = new Texture(pixmap);
-
-            if(Collision.checkCollision(Player.playerRect, enemyParty.get(i).enemyRect) && !FirstScreen.resetingWorld){
-                System.out.println("VOCE MORREU!@");
-                FirstScreen.mainMusic.stop();
-                FirstScreen.resetingWorld = true;
-                Player.playerdieSfx.play();
-                FirstScreen.loseMusic.play();
-            }
-
-            if(Collision.checkCollision(Player.playerShootRect, enemyParty.get(i).enemyRect)){
-                Player.shootCoolDown = false;
-                System.out.println("MATOU O INIMIGO: " + (enemyParty.get(i).ID));
-                enemyDieSfx.play();
+            if(enemyParty.get(i).state == EnemyState.DEATH && enemyParty.get(i).dyingAnimation.isAnimationFinished(enemyParty.get(i).stateTime)){
                 enemyParty.removeValue(enemyParty.get(i), true);
 
                 for(int j = 0; j < enemyParty.size; j++){
@@ -168,11 +213,7 @@ public class Enemy {
                     Enemy. mostCloseBeginID = 0;
                     Enemy.mostCloseEndID = 0;
                 }
-                
-                Player.playerScore++;
-                Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
             }
-
         }
 
         //CHECK CLOSEST TO BEGIN/END
@@ -190,11 +231,9 @@ public class Enemy {
         if(enemyParty.size > 1){
             pixmap.setColor(Color.BLUE);
             pixmap.fill();
-            enemyParty.get(Enemy.mostCloseBeginID).enemyTexture = new Texture(pixmap);
 
             pixmap.setColor(Color.RED);
             pixmap.fill();
-            enemyParty.get(Enemy.mostCloseEndID).enemyTexture = new Texture(pixmap);
         }
     }
 }
