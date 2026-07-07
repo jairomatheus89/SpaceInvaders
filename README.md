@@ -1,5 +1,21 @@
+
 # SpaceInvaders
 
+## Como Rodar?:
+Se tiver no windows na pasta raiz do projeto execute o `gradlew.bat` com o comando: ``.\gradlew run``
+
+Se tiver no Linux: ``./gradlew run`` 
+
+## Projeto:
+### source: 
+	core/src/main/java/com/jairo/spaceinvaders/
+
+O codigo principal e "start" do projeto é o ``FirstScreen.java`` é nele que vamos fazer alterações e implementar o loops principais como update() e render().
+
+### !warning!
+como o projeto ainda é pequeno esta sendo utilizado apenas uma tela/cena ainda para toda a aplicação utilizando apenas de booleans para renderizar ou nao, e metodos para resetar entidades, como status de player, vetores de inimigos, e vetores de projeteis da cena por exemplo 
+
+---
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
 This project was generated with a template including simple application launchers and a main class extending `Game` that sets the first screen.
