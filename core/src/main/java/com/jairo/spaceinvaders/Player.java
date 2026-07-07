@@ -1,6 +1,8 @@
 package com.jairo.spaceinvaders;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -11,6 +13,10 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFont
 import com.badlogic.gdx.math.Rectangle;
 
 public class Player {
+
+    protected static Music hurtEffectSfx = Gdx.audio.newMusic(Gdx.files.internal("hurt.wav"));
+    protected static Music playerShootSfx = Gdx.audio.newMusic(Gdx.files.internal("shoot.wav"));
+    protected static Music playerdieSfx = Gdx.audio.newMusic(Gdx.files.internal("playerdie.wav"));
 
     protected static final FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("Roboto-Regular.ttf"));
     protected static final FreeTypeFontParameter parameter = new FreeTypeFontParameter();
@@ -46,10 +52,7 @@ public class Player {
         parameter.color = Color.WHITE;
 
         scoreFont = generator.generateFont(parameter);
-        layoutScoreFont.setText(scoreFont, "SCORE: " + String.valueOf(playerScore));
-
         lifesFont = generator.generateFont(parameter);
-        layoutLifesFont.setText(lifesFont, "LIFES: " + String.valueOf(playerLifes));
 
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
@@ -58,6 +61,17 @@ public class Player {
         pixmap.setColor(Color.GREEN);
         pixmap.fill();
         playerShootTexture = new Texture(pixmap);
+    }
 
+    protected static void playerControll(float delta){
+        if(Gdx.input.isKeyPressed(Input.Keys.D) && (playerRect.x < Gdx.graphics.getWidth() - playerRect.width)) playerRect.x += playerSpeed * delta;
+            if(Gdx.input.isKeyPressed(Input.Keys.A) && playerRect.x > 0) playerRect.x -= playerSpeed * delta;
+            if(Gdx.input.isKeyPressed(Input.Keys.W)) playerRect.y += playerSpeed * delta;
+            if(Gdx.input.isKeyPressed(Input.Keys.S)) playerRect.y -= playerSpeed * delta;
+
+            if(Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !shootCoolDown){
+                playerShootSfx.play();
+                shootCoolDown = true;
+            }
     }
 }

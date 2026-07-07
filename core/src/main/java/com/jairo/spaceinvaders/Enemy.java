@@ -1,6 +1,7 @@
 package com.jairo.spaceinvaders;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -8,11 +9,11 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.DelayedRemovalArray;
 
+
 class EnemyShoot{
 
     public Rectangle enemyShootRect;
     public static Texture enemyShootTexture;
-    
 
     private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
 
@@ -26,33 +27,34 @@ class EnemyShoot{
         pixmap.fill();
         enemyShootTexture = new Texture(pixmap);
     }
-
 }
 
 public class Enemy {
+
+    protected static Music enemyDieSfx = Gdx.audio.newMusic(Gdx.files.internal("enemydie.wav"));
+    protected static Music enemyShootSfx = Gdx.audio.newMusic(Gdx.files.internal("enemyShoot.wav"));
 
     private int ID;
     public Texture enemyTexture;
     
     public Rectangle enemyRect;
     
-    private static Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+    private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
 
     private static int mostCloseBeginID;
     private static int mostCloseEndID;
 
     private float enemyShootCoolDown = 0f;
-    private float shootSpeed = 60.0f;
-    private static float moveSideCoolDown = 1.0f;
+    private final float shootSpeed = 100.0f;
+    //private static float moveSideCoolDown = 1.0f;
 
     private static boolean moveSideRight = true;
-    private boolean shooting = false;
 
     Enemy(){
         //this.enemyQnt = enemyQnt;
     }
 
-    protected void enemiesLogics(DelayedRemovalArray<Enemy> enemyParty, DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
+    void enemiesLogics(DelayedRemovalArray<Enemy> enemyParty, DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
         enemyLogic(enemyParty, enemyShootsParty, delta);
         enemyAttackLogic(enemyShootsParty, delta); 
     }
@@ -94,12 +96,19 @@ public class Enemy {
 
         for(int i = 0; i < enemyShootsParty.size; i++){
 
-            enemyShootsParty.get(i).enemyShootRect.y -= 50.0f * delta;
+            enemyShootsParty.get(i).enemyShootRect.y -= shootSpeed * delta;
 
             if(Collision.checkCollision(Player.playerRect, enemyShootsParty.get(i).enemyShootRect) && !Player.hurted){
                 Player.hurted = true;
                 Player.playerLifes--;
-                if(Player.playerLifes <= 0) FirstScreen.resetingWorld = true;
+                if(Player.playerLifes <= 0){
+                    FirstScreen.mainMusic.stop();
+                    FirstScreen.resetingWorld = true;
+                    FirstScreen.loseMusic.play();
+                    Player.playerdieSfx.play();
+                }else {
+                    Player.hurtEffectSfx.play();
+                }
                 Player.layoutLifesFont.setText(Player.lifesFont, "LIFES: " + String.valueOf(Player.playerLifes));
                 Player.damageTaken = 3.0f;
             }
@@ -114,16 +123,19 @@ public class Enemy {
         }
         if(enemyParty.get(Enemy.mostCloseBeginID).enemyRect.x - enemyParty.get(Enemy.mostCloseBeginID).enemyRect.width <= 0) moveSideRight = !moveSideRight;
 
-        
         for(int i = enemyParty.size - 1; i >= 0; i--){
+
+            //SHOOTING SETUP
             if(enemyParty.get(i).enemyShootCoolDown >= 0.0f){
                 enemyParty.get(i).enemyShootCoolDown -= 0.5f * delta;
             } else {
                 EnemyShoot shoot = new EnemyShoot(enemyParty.get(i).enemyRect.x, enemyParty.get(i).enemyRect.y);
                 enemyShootsParty.add(shoot);
                 enemyParty.get(i).enemyShootCoolDown = MathUtils.random( 6.0f, 18.0f);
+                enemyShootSfx.play();
             }
 
+            //MOVE SETUP
             if(moveSideRight) enemyParty.get(i).enemyRect.x += 2f;
             if(!moveSideRight) enemyParty.get(i).enemyRect.x -= 2f;
 
@@ -133,12 +145,16 @@ public class Enemy {
 
             if(Collision.checkCollision(Player.playerRect, enemyParty.get(i).enemyRect) && !FirstScreen.resetingWorld){
                 System.out.println("VOCE MORREU!@");
+                FirstScreen.mainMusic.stop();
                 FirstScreen.resetingWorld = true;
+                Player.playerdieSfx.play();
+                FirstScreen.loseMusic.play();
             }
 
             if(Collision.checkCollision(Player.playerShootRect, enemyParty.get(i).enemyRect)){
                 Player.shootCoolDown = false;
                 System.out.println("MATOU O INIMIGO: " + (enemyParty.get(i).ID));
+                enemyDieSfx.play();
                 enemyParty.removeValue(enemyParty.get(i), true);
 
                 for(int j = 0; j < enemyParty.size; j++){

@@ -3,6 +3,7 @@ package com.jairo.spaceinvaders;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -17,6 +18,9 @@ import com.badlogic.gdx.utils.DelayedRemovalArray;
 /** First screen of the application. Displayed after the application is created. */
 public class FirstScreen implements Screen {
 
+    protected static Music mainMusic = Gdx.audio.newMusic(Gdx.files.internal("space.ogg"));
+    protected static Music loseMusic = Gdx.audio.newMusic(Gdx.files.internal("lose.wav"));
+    
     SpriteBatch batch;
 
     FreeTypeFontGenerator generator;
@@ -43,6 +47,7 @@ public class FirstScreen implements Screen {
     
     @Override
     public void show() {
+
         this.batch = new SpriteBatch();
 
         //FONT GENERATOR AND DEFAULT PARAMETER
@@ -60,22 +65,27 @@ public class FirstScreen implements Screen {
         this.endGameFont = generator.generateFont(parameter);
         layoutEngGame.setText(endGameFont, "Your Died!\nPress 'SPACE' to Restart...", Color.WHITE, 0f, Align.center, false);
 
+
+        Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
+        Player.layoutLifesFont.setText(Player.lifesFont, "LIFES: " + String.valueOf(Player.playerLifes));
+
         //SET INITIAL OF RECs
         Player.playerRect.x = (Gdx.graphics.getWidth() / 2) - (Player.playerRect.width / 2);
         Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
 
         //SETTING ENEMIES PARTYS TO FUCKING ALL NIGHTTT!!!
         enemy.spawnEnemies(enemyParty);
-        
+
+        mainMusic.setLooping(true);
+        mainMusic.setVolume(0.3f);
+        mainMusic.play();
     }
 
     public void update(float delta){
 
         System.out.print("\033[H\033[2J");
         System.out.flush();
-
         System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyShootsParty.size);
-
 
         if(Player.hurted){
 
@@ -120,21 +130,15 @@ public class FirstScreen implements Screen {
 
         if(!resetingWorld && coolDownReset < 0f){
             enemy.enemiesLogics(enemyParty, enemyShootsParty, delta);
-
-            if(Gdx.input.isKeyPressed(Input.Keys.D) && (Player.playerRect.x < Gdx.graphics.getWidth() - Player.playerRect.width)) Player.playerRect.x += Player.playerSpeed * delta;
-            if(Gdx.input.isKeyPressed(Input.Keys.A) && Player.playerRect.x > 0) Player.playerRect.x -= Player.playerSpeed * delta;
-            if(Gdx.input.isKeyPressed(Input.Keys.W)) Player.playerRect.y += Player.playerSpeed * delta;
-            if(Gdx.input.isKeyPressed(Input.Keys.S)) Player.playerRect.y -= Player.playerSpeed * delta;
-
-            if(Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !Player.shootCoolDown){
-                Player.shootCoolDown = true;
-            }
+            Player.playerControll(delta);
         }
 
         if(resetingWorld && Gdx.input.isKeyJustPressed(Input.Keys.SPACE)){
             resetWorld();
             resetingWorld = false;
         }
+
+
     }
 
     @Override
@@ -159,8 +163,8 @@ public class FirstScreen implements Screen {
             }
             
             if(!enemyParty.isEmpty() && !resetingWorld){
-                for(Enemy enemy : enemyParty){
-                    batch.draw(enemy.enemyTexture, enemy.enemyRect.x, enemy.enemyRect.y, enemy.enemyRect.width, enemy.enemyRect.height);
+                for(Enemy obj : enemyParty){
+                    batch.draw(obj.enemyTexture, obj.enemyRect.x, obj.enemyRect.y, obj.enemyRect.width, obj.enemyRect.height);
                 }
 
                 for(EnemyShoot eShoot : enemyShootsParty){
@@ -174,7 +178,7 @@ public class FirstScreen implements Screen {
     public void resize(int width, int height) {
         // If the window is minimized on a desktop (LWJGL3) platform, width and height are 0, which causes problems.
         // In that case, we don't resize anything, and wait for the window to be a normal size before updating.
-        if(width <= 0 || height <= 0) return;
+        //if(width <= 0 || height <= 0) return;
         // Resize your screen here. The parameters represent the new window size.
     }
 
@@ -196,6 +200,12 @@ public class FirstScreen implements Screen {
     @Override
     public void dispose() {
         // Destroy screen's assets here.
+        mainMusic.dispose();
+        loseMusic.dispose();
+        batch.dispose();
+        generator.dispose();
+        basicFont.dispose();
+        endGameFont.dispose();
     }
 
     void resetWorld(){
@@ -210,12 +220,13 @@ public class FirstScreen implements Screen {
         Player.playerTexture = new Texture(Player.pixmap);
 
         enemyParty.begin();
-        for(Enemy enemy : enemyParty){
+        for(Enemy obj : enemyParty){
             Player.playerRect.setCenter(Gdx.graphics.getWidth() / 2, 50f);
             Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
-            enemyParty.removeValue(enemy, true);
+            enemyParty.removeValue(obj, true);
         }
         enemyParty.end();
         coolDownReset = 0.5f;
+        mainMusic.play();
     }
 }

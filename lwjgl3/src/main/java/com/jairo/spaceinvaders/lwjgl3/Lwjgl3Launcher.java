@@ -12,7 +12,7 @@ public class Lwjgl3Launcher {
     }
 
     private static Lwjgl3Application createApplication() {
-        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        Lwjgl3ApplicationConfiguration config = getDefaultConfiguration();
         
         config.setForegroundFPS(30);
         config.setWindowedMode(1000, 600);
