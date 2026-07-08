@@ -16,7 +16,7 @@ public class Lwjgl3Launcher {
         
         config.setForegroundFPS(30);
         config.setWindowedMode(1000, 600);
-        config.setTitle("Jairo SpaceInvaders");
+        config.setTitle("EXORCIST INVADERS");
 
         return new Lwjgl3Application(new Core(), config);
     }

@@ -6,10 +6,13 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 import com.badlogic.gdx.utils.Align;
@@ -20,7 +23,12 @@ public class FirstScreen implements Screen {
 
     protected static Music mainMusic = Gdx.audio.newMusic(Gdx.files.internal("space.ogg"));
     protected static Music loseMusic = Gdx.audio.newMusic(Gdx.files.internal("lose.wav"));
-    
+
+    protected static Texture backgroundTex = new Texture(Gdx.files.internal("cemeterybackground.png"));
+    protected static TextureRegion[] backgroundRegion = TextureRegion.split(backgroundTex, 572, 322)[0];
+    protected static Animation<TextureRegion> backgroundAnimation = new  Animation<>(0.15f, backgroundRegion);
+    private static float backgroundStateTime = 0f;
+
     SpriteBatch batch;
 
     FreeTypeFontGenerator generator;
@@ -34,36 +42,44 @@ public class FirstScreen implements Screen {
 
     float coolDownReset = 0.5f;
 
-
-    float piscaCD = 1.0f;
-    boolean piscaBool = false;
-    float piscaColor = 1.0f;
-
     protected static boolean resetingWorld = false;
+    protected static float resetingCoolDown = 1.0f;
 
     Enemy enemy = new Enemy();
     DelayedRemovalArray<Enemy> enemyParty = new DelayedRemovalArray<>();
     DelayedRemovalArray<EnemyShoot> enemyShootsParty = new DelayedRemovalArray<>();
+
+    protected static final Pixmap pixmapDebug = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+    protected Texture playerDebugRec;
+    float leftDebug = Player.playerRect.x + Player.playerRect.width * 0.15f;
+    float widthDebug = Player.playerRect.x + Player.playerRect.width * 0.85f;
+    float heightDebug = Player.playerRect.y + Player.playerRect.height * 0.85f;
+    float bottomDebug = Player.playerRect.y;
     
     @Override
     public void show() {
 
+        pixmapDebug.setColor(Color.ORANGE);
+        pixmapDebug.fill();
+        playerDebugRec = new Texture(pixmapDebug);
+
         this.batch = new SpriteBatch();
 
         //FONT GENERATOR AND DEFAULT PARAMETER
-        this.generator = new FreeTypeFontGenerator(Gdx.files.internal("Roboto-Regular.ttf"));
+        this.generator = new FreeTypeFontGenerator(Gdx.files.internal("meltedMonster.ttf"));
         this.parameter = new FreeTypeFontParameter();
-        this.parameter.size = 36;
-        this.parameter.borderWidth = 1.0f;
-        this.parameter.borderColor = Color.RED;
-        this.parameter.color = Color.WHITE;
+        this.parameter.size = 38;
+        this.parameter.shadowOffsetX = 3;
+        this.parameter.shadowOffsetY = 3;
+        this.parameter.shadowColor = Color.BLACK;
+        this.parameter.color = Color.GREEN;
         
         //TITLE TEXT
         this.basicFont = generator.generateFont(parameter);
-        layoutBasicFont.setText(basicFont, "Space Invaders!");
+        layoutBasicFont.setText(basicFont, "Exorcism Invaders!");
 
         this.endGameFont = generator.generateFont(parameter);
-        layoutEngGame.setText(endGameFont, "Your Died!\nPress 'SPACE' to Restart...", Color.WHITE, 0f, Align.center, false);
+        layoutEngGame.setText(endGameFont, "Your Dead!\nSCORE:" + Player.playerScore + "\nPress 'SPACE' to Restart...", Color.WHITE, 0f, Align.center, false);
 
 
         Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
@@ -71,7 +87,7 @@ public class FirstScreen implements Screen {
 
         //SET INITIAL OF RECs
         Player.playerRect.x = (Gdx.graphics.getWidth() / 2) - (Player.playerRect.width / 2);
-        Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
+        Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /3)));
 
         //SETTING ENEMIES PARTYS TO FUCKING ALL NIGHTTT!!!
         enemy.spawnEnemies(enemyParty);
@@ -83,49 +99,46 @@ public class FirstScreen implements Screen {
 
     public void update(float delta){
 
-        System.out.print("\033[H\033[2J");
-        System.out.flush();
-        System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyParty.size);
-        System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyShootsParty.size);
+
+        // leftDebug = Player.playerRect.x + Player.playerRect.width * 0.15f;
+        // widthDebug = Player.playerRect.width * 0.70f;
+        // heightDebug = Player.playerRect.height * 0.90f;
+        // bottomDebug = Player.playerRect.y;
+
+        // System.out.print("\033[H\033[2J");
+        // System.out.flush();
+        // System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyParty.size);
+        // System.out.println("QUANTIDADE DE SHOOTS NO ARRAY: " + enemyShootsParty.size);
 
         if(Player.hurted){
-
-            piscaCD -= 6.0f * delta;
-            if(piscaCD <= 0.0f){
-                piscaBool = !piscaBool; 
-                piscaCD = 1.0f;
-            }
-
-            if(piscaBool) piscaColor = 1.0f;
-            else piscaColor = 0.0f;
-
-            Player.pixmap.setColor(Color.rgba8888(1.0f, piscaColor, piscaColor, 1.0f));
-            Player.pixmap.fill();
-            Player.playerTexture = new Texture(Player.pixmap);
 
             Player.damageTaken -= 1.0 * delta;
             if(Player.damageTaken < 0.0f){
                 Player.hurted = false;
-                Player.pixmap.setColor(Color.WHITE);
-                Player.pixmap.fill();
-                Player.playerTexture = new Texture(Player.pixmap);
-            } 
+            }
         }
 
         if(coolDownReset >= 0.0f) coolDownReset -= 1.0f * delta;
 
         if(enemyParty.isEmpty() && !resetingWorld){
+            Enemy.sideSpeed *= 1.4f;
+            Enemy.downSpeed *= 1.2f;
+            Enemy.shootCoolDownMin *= 0.8f;
+            if(Enemy.shootCoolDownMin < 0.1f) Enemy.shootCoolDownMin = 0.1f;
+            Enemy.shootCoolDownMax *= 0.6f;
+            if(Enemy.shootCoolDownMax < 1.2f) Enemy.shootCoolDownMax = 1.2f;
             enemy.spawnEnemies(enemyParty);
         }
 
         //SHOOT FOLLOWING PLAYER
-        if(!Player.shootCoolDown) Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
+        if(!Player.shootCoolDown) Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /3)));
         else {
             Player.playerShootRect.y += Player.playerShootSpeed * delta;
 
             if(Player.playerShootRect.y > Gdx.graphics.getHeight()){
                 Player.shootCoolDown = false;
-                Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /2)));
+                Player.shootStateTime = 0f;
+                Player.playerShootRect.setCenter((Player.playerRect.x + (Player.playerRect.width /2)), (Player.playerRect.y + (Player.playerRect.height /3)));
             }
         }
 
@@ -134,12 +147,11 @@ public class FirstScreen implements Screen {
             Player.playerControll(delta);
         }
 
-        if(resetingWorld && Gdx.input.isKeyJustPressed(Input.Keys.SPACE)){
+        if(resetingWorld && resetingCoolDown >= 0.0f) resetingCoolDown -= 1.0f * delta;
+        if(resetingWorld && Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && resetingCoolDown < 0f){
             resetWorld();
             resetingWorld = false;
         }
-
-
     }
 
     @Override
@@ -152,14 +164,24 @@ public class FirstScreen implements Screen {
         //DRAW AREA
         batch.begin();
 
-            if(resetingWorld)endGameFont.draw(batch, layoutEngGame, (Gdx.graphics.getWidth() / 2), (Gdx.graphics.getHeight() / 2) + layoutEngGame.height);
-
+            if(resetingWorld){
+                layoutEngGame.setText(endGameFont, "Your Dead!\n\nSCORE:" + Player.playerScore + "\n\nPress 'SPACE' to Restart...", Color.WHITE, 0f, Align.center, false);
+                endGameFont.draw(batch, layoutEngGame, (Gdx.graphics.getWidth() / 2), (Gdx.graphics.getHeight() / 2) + (layoutEngGame.height /2));
+            }
             if(!resetingWorld){
+                batch.setColor(0.3f, 0.3f, 0.45f, 1f); // escurece
+                batch.draw(FirstScreen.getCurrentFrameAnim(delta), 0.0f, 0.0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+                batch.setColor(Color.WHITE);
+
                 basicFont.draw(batch, layoutBasicFont, (Gdx.graphics.getWidth() / 2) - (layoutBasicFont.width / 2), Gdx.graphics.getHeight() - basicFont.getAscent());
                 Player.scoreFont.draw(batch, Player.layoutScoreFont, 10f,  Gdx.graphics.getHeight() - Player.scoreFont.getAscent());
 
-                batch.draw(Player.playerShootTexture, Player.playerShootRect.x, Player.playerShootRect.y, Player.playerShootRect.width, Player.playerShootRect.height);
-                batch.draw(Player.playerTexture, Player.playerRect.x, Player.playerRect.y, Player.playerRect.width, Player.playerRect.height);
+                //batch.draw(playerDebugRec, leftDebug, bottomDebug, widthDebug, heightDebug);
+
+                batch.draw(Player.getCurrentFrameShootAnim(delta), Player.playerShootRect.x, Player.playerShootRect.y, Player.playerShootRect.width, Player.playerShootRect.height);
+                batch.draw(Player.getCurrentFrameAnim(delta), Player.playerRect.x, Player.playerRect.y, Player.playerRect.width, Player.playerRect.height);
+                
                 Player.lifesFont.draw(batch, Player.layoutLifesFont, (Gdx.graphics.getWidth() - Player.layoutLifesFont.width) - Player.lifesFont.getSpaceXadvance(), Gdx.graphics.getHeight() - Player.lifesFont.getAscent());
             }
             
@@ -174,7 +196,9 @@ public class FirstScreen implements Screen {
                 }
 
                 for(EnemyShoot eShoot : enemyShootsParty){
-                    batch.draw(EnemyShoot.enemyShootTexture, eShoot.enemyShootRect.x, eShoot.enemyShootRect.y, eShoot.enemyShootRect.width, eShoot.enemyShootRect.height);
+                    if(eShoot.state == EnemyShoot.EnemyShootState.IDLE){
+                        batch.draw(eShoot.getCurrentFrameAnim(eShoot.idleAnimation, delta), eShoot.enemyShootRect.x, eShoot.enemyShootRect.y, eShoot.enemyShootRect.width, eShoot.enemyShootRect.height);
+                    }
                 }
             }
         batch.end();
@@ -221,9 +245,11 @@ public class FirstScreen implements Screen {
         Player.hurted = false;
         Player.layoutScoreFont.setText(Player.scoreFont, "SCORE: " + String.valueOf(Player.playerScore));
         Player.layoutLifesFont.setText(Player.lifesFont, "LIFES: " + String.valueOf(Player.playerLifes));
-        Player.pixmap.setColor(Color.WHITE);
-        Player.pixmap.fill();
-        Player.playerTexture = new Texture(Player.pixmap);
+
+        Enemy.shootCoolDownMin = 6.0f;
+        Enemy.shootCoolDownMax = 20.0f;
+        Enemy.sideSpeed = 20.0f;
+        Enemy.downSpeed = 6.0f;
 
         enemyParty.begin();
         for(Enemy obj : enemyParty){
@@ -234,5 +260,11 @@ public class FirstScreen implements Screen {
         enemyParty.end();
         coolDownReset = 0.5f;
         mainMusic.play();
+    }
+
+    public static TextureRegion getCurrentFrameAnim(float delta){
+        backgroundStateTime += delta;
+
+        return backgroundAnimation.getKeyFrame(backgroundStateTime, true);
     }
 }

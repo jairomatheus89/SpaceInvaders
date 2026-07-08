@@ -2,8 +2,6 @@ package com.jairo.spaceinvaders;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -15,20 +13,38 @@ import com.badlogic.gdx.utils.DelayedRemovalArray;
 
 class EnemyShoot{
 
-    public Rectangle enemyShootRect;
-    public static Texture enemyShootTexture;
+    public static enum EnemyShootState{
+        IDLE
+    }
 
-    private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+    public Rectangle enemyShootRect;
+    public static final Texture enemyShootTexture = new Texture(Gdx.files.internal("spritesheets/enemy/enemyShoot.png"));
+    private static final TextureRegion[][] regionsTex = TextureRegion.split(enemyShootTexture, 16, 28);
+    private static final TextureRegion[] idle = {
+        regionsTex[0][0],
+        regionsTex[0][1],
+        regionsTex[0][2],
+        regionsTex[0][3],
+        regionsTex[0][4],
+        regionsTex[0][5]
+    };
+
+    public EnemyShootState state = EnemyShootState.IDLE;;
+    public float stateTime;
+
+    protected Animation<TextureRegion> idleAnimation = new Animation<>(0.1f, idle);
 
     public EnemyShoot(float xPos, float yPos){
-        enemyShootRect = new Rectangle(xPos, yPos, 10f, 10f);
+        enemyShootRect = new Rectangle(xPos, yPos, 16f, 26f);
         enemyShootRect.setCenter(xPos, yPos);
     }
 
-    static {
-        pixmap.setColor(Color.PURPLE);
-        pixmap.fill();
-        enemyShootTexture = new Texture(pixmap);
+    public TextureRegion getCurrentFrameAnim(Animation<TextureRegion> animation, float delta){
+        this.stateTime += delta;
+        if(this.state == EnemyShootState.IDLE){
+            return animation.getKeyFrame(this.stateTime, true);
+        }
+        return animation.getKeyFrame(this.stateTime, false);
     }
 }
 
@@ -39,12 +55,19 @@ public class Enemy {
         DEATH
     }
 
+    private static enum DirectionState {
+        RIGHT,
+        LEFT
+    }
+
     protected static Music enemyDieSfx = Gdx.audio.newMusic(Gdx.files.internal("enemydie.wav"));
     protected static Music enemyShootSfx = Gdx.audio.newMusic(Gdx.files.internal("enemyShoot.wav"));
 
     private int ID;
     public EnemyState state = EnemyState.ALIVE;;
     public float stateTime;
+
+    private static DirectionState directionState = DirectionState.RIGHT;
 
     private static final Texture enemyTexture = new Texture(Gdx.files.internal("spritesheets/enemy/enemy.png"));
     private static final TextureRegion[][] regions = TextureRegion.split(enemyTexture, 50, 50); 
@@ -63,21 +86,25 @@ public class Enemy {
         regions[1][6],
     };
 
-    Animation<TextureRegion> idleAnimation = new Animation<>(0.1f, idle);
-    Animation<TextureRegion> dyingAnimation = new Animation<>(0.1f, dyingAnim);
+    protected Animation<TextureRegion> idleAnimation = new Animation<>(0.1f, idle);
+    protected Animation<TextureRegion> dyingAnimation = new Animation<>(0.1f, dyingAnim);
 
     public Rectangle enemyRect;
-    
-    private static final Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+
+    public static float shootCoolDownMin = 6.0f;
+    public static float shootCoolDownMax = 20.0f;
+
+    public static float sideSpeed = 20.0f;
+    public static float downSpeed = 6.0f;
 
     private static int mostCloseBeginID;
     private static int mostCloseEndID;
 
     private float enemyShootCoolDown = 3f;
     private final float shootSpeed = 100.0f;
-    //private static float moveSideCoolDown = 1.0f;
 
-    private static boolean moveSideRight = true;
+    private static float moveDownCounter = 3f;
+    private static boolean moveDown = false;
 
     Enemy(){
         //this.enemyQnt = enemyQnt;
@@ -96,7 +123,7 @@ public class Enemy {
         float xPos = enemySize * 1.1f;
         float yPos = Gdx.graphics.getHeight();
 
-        for(int i = 0; i < 40; i++){
+        for(int i = 0; i < 30; i++){
             if(i % 10 == 0){
                 yPos -= enemySize * 1.8f;
                 xPos = enemySize * 1.7f;
@@ -108,7 +135,7 @@ public class Enemy {
             dyingAnimation.setPlayMode(Animation.PlayMode.NORMAL);
 
             enemy.enemyRect = new Rectangle(xPos, yPos, enemySize, enemySize);
-            enemy.enemyShootCoolDown = MathUtils.random( 3.0f, 18.0f);
+            enemy.enemyShootCoolDown = MathUtils.random( shootCoolDownMin, shootCoolDownMax);
             
             enemyParty.add(enemy);
 
@@ -121,11 +148,11 @@ public class Enemy {
     }
 
     public TextureRegion getCurrentFrameAnim(Animation<TextureRegion> animation, float delta){
-        stateTime += delta;
-        if(state == EnemyState.ALIVE){
-            return animation.getKeyFrame(stateTime, true);
+        this.stateTime += delta;
+        if(this.state == EnemyState.ALIVE){
+            return animation.getKeyFrame(this.stateTime, true);
         }
-        return animation.getKeyFrame(stateTime, false);
+        return animation.getKeyFrame(this.stateTime, false);
     }
 
     private void enemyAttackLogic(DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
@@ -134,10 +161,13 @@ public class Enemy {
 
             enemyShootsParty.get(i).enemyShootRect.y -= shootSpeed * delta;
 
-            if(Collision.checkCollision(Player.playerRect, enemyShootsParty.get(i).enemyShootRect) && !Player.hurted){
+            if(Collision.checkCollisionEnemyAttack(Player.playerRect, enemyShootsParty.get(i).enemyShootRect) && !Player.hurted){
                 Player.hurted = true;
                 Player.playerLifes--;
+                Player.stateTime = 0f;
+                Player.playerState = Player.PlayerState.HURT;
                 if(Player.playerLifes <= 0){
+                    FirstScreen.resetingCoolDown = 1.0f;
                     FirstScreen.mainMusic.stop();
                     FirstScreen.resetingWorld = true;
                     FirstScreen.loseMusic.play();
@@ -154,13 +184,20 @@ public class Enemy {
     }
 
     private void enemyLogic(DelayedRemovalArray<Enemy> enemyParty, DelayedRemovalArray<EnemyShoot> enemyShootsParty, float delta){
-        if(enemyParty.get(Enemy.mostCloseEndID).enemyRect.x + (enemyParty.get(Enemy.mostCloseEndID).enemyRect.width * 2) >= Gdx.graphics.getWidth()) {
-            moveSideRight = !moveSideRight;
+
+        if(enemyParty.get(Enemy.mostCloseEndID).enemyRect.x + (enemyParty.get(Enemy.mostCloseEndID).enemyRect.width * 2) >= Gdx.graphics.getWidth() && directionState == DirectionState.RIGHT) { 
+            directionState = DirectionState.LEFT;
+            moveDown = true;
+            moveDownCounter = 3.0f;
         }
-        if(enemyParty.get(Enemy.mostCloseBeginID).enemyRect.x - enemyParty.get(Enemy.mostCloseBeginID).enemyRect.width <= 0) moveSideRight = !moveSideRight;
+        if(enemyParty.get(Enemy.mostCloseBeginID).enemyRect.x - enemyParty.get(Enemy.mostCloseBeginID).enemyRect.width <= 0 && directionState == DirectionState.LEFT){
+            directionState = DirectionState.RIGHT;
+            moveDown = true;
+            moveDownCounter = 3.0f;
+        }
 
-       
-
+        moveDownCounter -= delta;
+        if(moveDownCounter <= 0.0f) moveDown = false;
 
         for(int i = enemyParty.size - 1; i >= 0; i--){
             
@@ -171,16 +208,26 @@ public class Enemy {
                 } else {
                     EnemyShoot shoot = new EnemyShoot(enemyParty.get(i).enemyRect.x, enemyParty.get(i).enemyRect.y);
                     enemyShootsParty.add(shoot);
-                    enemyParty.get(i).enemyShootCoolDown = MathUtils.random( 3.0f, 18.0f);
+                    enemyParty.get(i).enemyShootCoolDown = MathUtils.random( shootCoolDownMin, shootCoolDownMax);
                     enemyShootSfx.play();
                 }
 
-                //IF ALIVE MOVE SETUP
-                if(moveSideRight) enemyParty.get(i).enemyRect.x += 2f;
-                if(!moveSideRight) enemyParty.get(i).enemyRect.x -= 2f;
+                if(moveDown) enemyParty.get(i).enemyRect.y -= downSpeed * delta;
+                if(!moveDown && directionState == DirectionState.RIGHT) enemyParty.get(i).enemyRect.x += sideSpeed * delta;
+                if(!moveDown && directionState == DirectionState.LEFT) enemyParty.get(i).enemyRect.x -= sideSpeed * delta;
 
                 if(Collision.checkCollision(Player.playerRect, enemyParty.get(i).enemyRect) && !FirstScreen.resetingWorld){
                     System.out.println("VOCE MORREU!@");
+                    FirstScreen.resetingCoolDown = 1.0f;
+                    FirstScreen.mainMusic.stop();
+                    FirstScreen.resetingWorld = true;
+                    Player.playerdieSfx.play();
+                    FirstScreen.loseMusic.play();
+                }
+
+                if(enemyParty.get(i).enemyRect.y <= 10f && !FirstScreen.resetingWorld){
+                    System.out.println("VOCE MORREU!@");
+                    FirstScreen.resetingCoolDown = 1.0f;
                     FirstScreen.mainMusic.stop();
                     FirstScreen.resetingWorld = true;
                     Player.playerdieSfx.play();
@@ -191,6 +238,7 @@ public class Enemy {
                     Player.shootCoolDown = false;
                     enemyParty.get(i).state = EnemyState.DEATH;
                     enemyParty.get(i).stateTime = 0;
+                    Player.shootStateTime = 0f;
                     System.out.println("MATOU O INIMIGO: " + (enemyParty.get(i).ID));
                     enemyDieSfx.play();
                     
@@ -226,14 +274,6 @@ public class Enemy {
                 Enemy.mostCloseEndID = enemyParty.get(i).ID;
             }
             //enemiesList += enemyParty.get(i).ID + " ";
-        }
-
-        if(enemyParty.size > 1){
-            pixmap.setColor(Color.BLUE);
-            pixmap.fill();
-
-            pixmap.setColor(Color.RED);
-            pixmap.fill();
         }
     }
 }
